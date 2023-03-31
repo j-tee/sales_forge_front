@@ -1,40 +1,108 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import {
+  REGISTER_SUCCESS,
+  REGISTER_FAIL,
+  LOGIN_SUCCESS,
+  LOGIN_FAIL,
+  LOGOUT,
+} from "../actions/types";
 
-export const fetchCurrentUser = createAsyncThunk(
-  'user/fetchCurrentUser',
-  async (_, thunkAPI) => {
+const user = JSON.parse(localStorage.getItem("user"));
+
+const initialState = user
+  ? { isLoggedIn: true, user }
+  : { isLoggedIn: false, user: null };
+
+export const register = createAsyncThunk(
+  "auth/register",
+  async (userData, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/currentUser');
+      // Make API call to register user
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
       const data = await response.json();
-      return data;
+
+      if (response.ok) {
+        return data;
+      } else {
+        return rejectWithValue(data);
+      }
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
+      return rejectWithValue(error.message);
     }
   }
 );
 
+export const login = createAsyncThunk(
+  "auth/login",
+  async (userData, { rejectWithValue }) => {
+    try {
+      // Make API call to log in user
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        return data;
+      } else {
+        return rejectWithValue(data);
+      }
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const logout = createAsyncThunk("auth/logout", async () => {
+  // Make API call to log out user
+  const response = await fetch("/api/auth/logout", {
+    method: "POST",
+  });
+  const data = await response.json();
+
+  if (response.ok) {
+    return data;
+  } else {
+    throw new Error(data.message);
+  }
+});
+
 const authSlice = createSlice({
-  name: 'auth',
-  initialState: {
-    currentUser: null,
-    status: 'idle',
-    error: null,
-  },
+  name: "auth",
+  initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchCurrentUser.pending, (state) => {
-        state.status = 'loading';
+      .addCase(REGISTER_SUCCESS, (state, action) => {
+        state.isLoggedIn = false;
       })
-      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.currentUser = action.payload;
+      .addCase(REGISTER_FAIL, (state, action) => {
+        state.isLoggedIn = false;
       })
-      .addCase(fetchCurrentUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload;
+      .addCase(LOGIN_SUCCESS, (state, action) => {
+        state.isLoggedIn = true;
+        state.user = action.payload.user;
+      })
+      .addCase(LOGIN_FAIL, (state, action) => {
+        state.isLoggedIn = false;
+        state.user = null;
+      })
+      .addCase(LOGOUT.fulfilled, (state, action) => {
+        state.isLoggedIn = false;
+        state.user = null;
       });
   },
 });
 
 export default authSlice.reducer;
+

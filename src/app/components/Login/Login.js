@@ -1,56 +1,131 @@
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
-import { useDispatch, useSelector } from 'react-redux';
-import { setEmail, setPassword, login } from '../../redux/loginSlice';
-import Navbar from '../Navbar/Navbar';
+import React, { useState, useRef } from "react";
+import { Redirect } from "react-router-dom";
+import { connect } from "react-redux";
+import { login } from "../actions/auth";
+import Form from "react-validation/build/form";
+import Input from "react-validation/build/input";
+import CheckButton from "react-validation/build/button";
 
-const Login = () => {
-  const email = useSelector((state) => state.login.email);
-  const password = useSelector((state) => state.login.password);
-  const isLoading = useSelector((state) => state.login.isLoading);
-  const error = useSelector((state) => state.login.error);
-  const isLoggedIn = useSelector((state) => state.login.isLoggedIn);
-  const dispatch = useDispatch();
-
-  const handleEmailChange = (event) => {
-    dispatch(setEmail(event.target.value));
-  };
-
-  const handlePasswordChange = (event) => {
-    dispatch(setPassword(event.target.value));
-  };
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    dispatch(login({ email, password }));
-  };
-  return (
-    <div className='bg-login'>
-      <Navbar/>
-      <div className='bg-form'>
-      <form className='login-form' onSubmit={handleSubmit}>
-      <h2>Login</h2>
-        <div className="form-group">
-          <label htmlFor="email">Email:</label>
-          <input type="email" className="form-control" id="email" placeholder="Enter email" value={email} onChange={handleEmailChange} />
-        </div>
-        <div className="form-group">
-          <label htmlFor="password">Password:</label>
-          <input type="password" className="form-control" id="password" placeholder="Enter password" value={password} onChange={handlePasswordChange} />
-        </div>
-        <button type="submit" className="btn btn-primary btn-primary-login" disabled={isLoading}>
-          {isLoading ? 'Logging in...' : 'Log in'}
-        </button>
-        {error && <div className="alert alert-danger">{error.message}</div>}
-        {isLoggedIn && <div className="alert alert-success">You are logged in!</div>}
-      </form>
+const required = (value) => {
+  if (!value) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        This field is required!
       </div>
-    </div>
-  );  
+    );
+  }
 };
 
-Login.propTypes = {};
+const Login = (props) => {
+  const form = useRef();
+  const checkBtn = useRef();
 
-Login.defaultProps = {};
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-export default Login;
+  const handleLogin = (e) => {
+    e.preventDefault();
+
+    setLoading(true);
+
+    form.current.validateAll();
+
+    if (checkBtn.current.context._errors.length === 0) {
+      props
+        .dispatch(login(username, password))
+        .then(() => {
+          props.history.push("/profile");
+          window.location.reload();
+        })
+        .catch(() => {
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  };
+
+  const onChangeUsername = (e) => {
+    const username = e.target.value;
+    setUsername(username);
+  };
+
+  const onChangePassword = (e) => {
+    const password = e.target.value;
+    setPassword(password);
+  };
+
+  const { isLoggedIn, message } = props;
+
+  if (isLoggedIn) {
+    return <Redirect to="/profile" />;
+  }
+
+  return (
+    <div className="col-md-12">
+      <div className="card card-container">
+        <img
+          src="//ssl.gstatic.com/accounts/ui/avatar_2x.png"
+          alt="profile-img"
+          className="profile-img-card"
+        />
+
+        <Form onSubmit={handleLogin} ref={form}>
+          <div className="form-group">
+            <label htmlFor="username">Username</label>
+            <Input
+              type="text"
+              className="form-control"
+              name="username"
+              value={username}
+              onChange={onChangeUsername}
+              validations={[required]}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <Input
+              type="password"
+              className="form-control"
+              name="password"
+              value={password}
+              onChange={onChangePassword}
+              validations={[required]}
+            />
+          </div>
+
+          <div className="form-group">
+            <button className="btn btn-primary btn-block" disabled={loading}>
+              {loading && (
+                <span className="spinner-border spinner-border-sm"></span>
+              )}
+              <span>Login</span>
+            </button>
+          </div>
+
+          {message && (
+            <div className="form-group">
+              <div className="alert alert-danger" role="alert">
+                {message}
+              </div>
+            </div>
+          )}
+          <CheckButton style={{ display: "none" }} ref={checkBtn} />
+        </Form>
+      </div>
+    </div>
+  );
+};
+
+function mapStateToProps(state) {
+  const { isLoggedIn } = state.auth;
+  const { message } = state.message;
+  return {
+    isLoggedIn,
+    message,
+  };
+}
+
+export default connect(mapStateToProps)(Login);
